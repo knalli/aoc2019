@@ -54,3 +54,11 @@ func ReadFileToString(path string) (*string, error) {
 		return &result, nil
 	}
 }
+
+func ParseStringToIntArray(lines []string) []int {
+	res := make([]int, len(lines))
+	for i, line := range lines {
+		res[i] = ParseInt(line)
+	}
+	return res
+}
