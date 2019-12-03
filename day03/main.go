@@ -280,12 +280,7 @@ func getShortestPath(base Point, wires []Wire, intersections []Point) (int, Poin
 					continue
 				}
 				pointKey := point.ToString()
-				var d int
-				if segment.isInverted() {
-					d = segment.Cost + (segment.Length - pointIdx)
-				} else {
-					d = segment.Cost + pointIdx
-				}
+				d := segment.Cost + pointIdx
 				if v, exist := data[pointKey]; !exist || d < v.Dist {
 					data[pointKey] = dataItem{
 						Dist:      d,

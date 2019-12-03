@@ -64,6 +64,13 @@ func Test_getShortestPath(t *testing.T) {
 			dist: 410,
 		},
 		{
+			name: "Sample3",
+			args: args{
+				lines: readSample("sample3.txt"),
+			},
+			dist: 14,
+		},
+		{
 			name: "Puzzle1",
 			args: args{
 				lines: readSample("puzzle1.txt"),
