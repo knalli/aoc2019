@@ -213,6 +213,10 @@ func getIntersections(paths [][]Point) []Point {
 	for _, path := range paths {
 		local := make(map[string]bool)
 		for _, c := range path {
+			if c.X == 0 && c.Y == 0 {
+				// ignore 0/0
+				continue
+			}
 			key := fmt.Sprintf("%d/%d", c.X, c.Y)
 			local[key] = true
 		}
