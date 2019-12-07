@@ -64,7 +64,7 @@ func evaluateAmplifiers(instructions []int, phaseSequence []int, input int) int 
 
 	for i := range phaseSequence {
 		// [i] -> Amplifier -> [i+1]
-		go func(in <-chan int, out chan int) {
+		go func(in <-chan int, out chan<- int) {
 			memory := make([]int, len(instructions))
 			copy(memory, instructions)
 			if ret := day07.ExecutionInstructions(memory, in, out, false); ret == nil {
@@ -101,7 +101,7 @@ func evaluateAmplifiersInLoop(instructions []int, phaseSequence []int, input int
 
 	for i := range phaseSequence {
 		// [i] -> Amplifier -> [i+1]
-		go func(in <-chan int, out chan int) {
+		go func(in <-chan int, out chan<- int) {
 			memory := make([]int, len(instructions))
 			copy(memory, instructions)
 			if ret := day07.ExecutionInstructions(memory, in, out, false); ret == nil {
