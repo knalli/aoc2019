@@ -73,10 +73,6 @@ func evaluateAmplifiers(instructions []int, phaseSequence []int, input int) int 
 		}(pipeline[i], pipeline[i+1])
 	}
 
-	// Reduce "last" to the max value
-	max := make(chan int)
-	go day07.ReduceIntChannel(pipeline[len(pipeline)-1], max, dl.MaxIntReducer)
-
 	// START
 	go func() {
 		for i, phase := range phaseSequence {
@@ -85,7 +81,8 @@ func evaluateAmplifiers(instructions []int, phaseSequence []int, input int) int 
 		pipeline[0] <- input
 	}()
 
-	return <-max
+	// output has one element
+	return <-pipeline[len(pipeline)-1]
 }
 
 func evaluateAmplifiersInLoop(instructions []int, phaseSequence []int, input int) int {
@@ -123,7 +120,7 @@ func evaluateAmplifiersInLoop(instructions []int, phaseSequence []int, input int
 
 	// Reduce "results" to the max value
 	max := make(chan int)
-	go day07.ReduceIntChannel(results, max, dl.MaxIntReducer)
+	go day07.ReduceIntChannel(results, max, dl.MaxIntArrayValue)
 
 	// START
 	go func() {

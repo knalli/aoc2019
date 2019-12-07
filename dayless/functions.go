@@ -92,7 +92,7 @@ func MaxInt(a, b int) int {
 	}
 }
 
-func MaxIntReducer(arr []int) int {
+func MaxIntArrayValue(arr []int) int {
 	max := 0
 	for _, n := range arr {
 		max = MaxInt(max, n)
