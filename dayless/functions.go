@@ -83,3 +83,19 @@ func BinarySearch(min int, max int, worker func(i int) bool, debug bool) int {
 		}
 	}
 }
+
+func MaxInt(a, b int) int {
+	if a > b {
+		return a
+	} else {
+		return b
+	}
+}
+
+func MaxIntReducer(arr []int) int {
+	max := 0
+	for _, n := range arr {
+		max = MaxInt(max, n)
+	}
+	return max
+}

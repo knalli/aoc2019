@@ -6,7 +6,7 @@ import (
 )
 
 // see also day05/compute2
-func ExecutionInstructions(data []int, in <-chan int, out chan int, debug bool) error {
+func ExecutionInstructions(data []int, in <-chan int, out chan<- int, debug bool) error {
 	i := 0
 	for {
 		iOpcode := data[i]
@@ -206,6 +206,7 @@ func ExecutionInstructions(data []int, in <-chan int, out chan int, debug bool) 
 				i += 4
 			}
 		case 99:
+			close(out)
 			return errors.New("got Halt And Catch Fire")
 		default:
 			panic(fmt.Sprintf("invalid op code %d (%d)", opcode, iOpcode))
