@@ -120,3 +120,31 @@ func Test_computeAmplified(t *testing.T) {
 		})
 	}
 }
+
+func Test_findHighestAmplifiedSignal(t *testing.T) {
+	type args struct {
+		puzzle        []int
+		phaseSequence []int
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			name: "Puzzle1",
+			args: args{
+				puzzle:        dl.ReadFileAsIntArray("puzzle1.txt"),
+				phaseSequence: []int{5, 6, 7, 8, 9},
+			},
+			want: 54163586,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := findHighestAmplifiedSignal(tt.args.puzzle, tt.args.phaseSequence); got != tt.want {
+				t.Errorf("findHighestSignal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
