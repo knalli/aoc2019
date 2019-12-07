@@ -1,6 +1,7 @@
 package main
 
 import (
+	dl "de.knallisworld/aoc/aoc2019/dayless"
 	"reflect"
 	"testing"
 )
@@ -66,7 +67,7 @@ func Test_findHighestSignal(t *testing.T) {
 		{
 			name: "Puzzle1",
 			args: args{
-				puzzle:        readFileAsIntArray("puzzle1.txt"),
+				puzzle:        dl.ReadFileAsIntArray("puzzle1.txt"),
 				phaseSequence: []int{0, 1, 2, 3, 4},
 			},
 			want: 46248,
