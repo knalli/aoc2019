@@ -55,6 +55,12 @@ func ReadFileToString(path string) (*string, error) {
 	}
 }
 
+func ReadFileAsIntArray(file string) []int {
+	str, _ := ReadFileToString(file)
+	arr := strings.Split(strings.TrimSpace(*str), ",")
+	return ParseStringToIntArray(arr)
+}
+
 func ParseStringToIntArray(lines []string) []int {
 	res := make([]int, len(lines))
 	for i, line := range lines {
