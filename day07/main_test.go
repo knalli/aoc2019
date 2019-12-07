@@ -1,6 +1,9 @@
 package main
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func Test_compute(t *testing.T) {
 	type args struct {
@@ -73,6 +76,45 @@ func Test_findHighestSignal(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := findHighestSignal(tt.args.puzzle, tt.args.phaseSequence); got != tt.want {
 				t.Errorf("findHighestSignal() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_computeAmplified(t *testing.T) {
+	type args struct {
+		instructions  []int
+		phaseSequence []int
+		input         int
+	}
+	tests := []struct {
+		name string
+		args args
+		want int
+	}{
+		{
+			name: "Sample1",
+			args: args{
+				instructions:  []int{3, 26, 1001, 26, -4, 26, 3, 27, 1002, 27, 2, 27, 1, 27, 26, 27, 4, 27, 1001, 28, -1, 28, 1005, 28, 6, 99, 0, 0, 5},
+				phaseSequence: []int{9, 8, 7, 6, 5},
+				input:         0,
+			},
+			want: 139629729,
+		},
+		{
+			name: "Sample2",
+			args: args{
+				instructions:  []int{3, 52, 1001, 52, -5, 52, 3, 53, 1, 52, 56, 54, 1007, 54, 5, 55, 1005, 55, 26, 1001, 54, -5, 54, 1105, 1, 12, 1, 53, 54, 53, 1008, 54, 0, 55, 1001, 55, 1, 55, 2, 53, 55, 53, 4, 53, 1001, 56, -1, 56, 1005, 56, 6, 99, 0, 0, 0, 0, 10},
+				phaseSequence: []int{9, 7, 8, 5, 6},
+				input:         0,
+			},
+			want: 18216,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := computeAmplified(tt.args.instructions, tt.args.phaseSequence, tt.args.input); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("computeAmplified() = %v, want %v", got, tt.want)
 			}
 		})
 	}

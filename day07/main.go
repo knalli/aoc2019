@@ -23,8 +23,12 @@ func main() {
 		dl.PrintSolution(fmt.Sprintf("The highest signal is: %d", max))
 	}
 
-	dl.PrintStepHeader(2)
-	dl.PrintSolution("Not solved yet")
+	{
+		dl.PrintStepHeader(2)
+		puzzle := readFileAsIntArray(AocDayName + "/puzzle1.txt")
+		max := findHighestAmplifiedSignal(puzzle, []int{5, 6, 7, 8, 9})
+		dl.PrintSolution(fmt.Sprintf("The highest signal using aplifier feedback is: %d", max))
+	}
 
 }
 
@@ -32,6 +36,17 @@ func findHighestSignal(puzzle []int, phaseSequence []int) int {
 	max := 0
 	for _, phaseSequences := range permutations(phaseSequence) {
 		out := <-compute(puzzle, phaseSequences, 0)
+		if out > max {
+			max = out
+		}
+	}
+	return max
+}
+
+func findHighestAmplifiedSignal(puzzle []int, phaseSequence []int) int {
+	max := 0
+	for _, phaseSequences := range permutations(phaseSequence) {
+		out := computeAmplified(puzzle, phaseSequences, 0)
 		if out > max {
 			max = out
 		}
@@ -89,7 +104,7 @@ func compute(instructions []int, phaseSequence []int, input int) chan int {
 			if halt == nil {
 				panic("Program not halted correctly")
 			}
-			close(in)
+			close(in) // TODO
 		}()
 	}
 
@@ -101,7 +116,66 @@ func compute(instructions []int, phaseSequence []int, input int) chan int {
 	return ios[len(phaseSequence)]
 }
 
-// copy of day5/compute2
+func reduceMax(in <-chan int, out chan int) {
+	m := 0
+	for n := range in {
+		if m < n {
+			m = n
+		}
+	}
+	out <- m
+	close(out)
+}
+
+func computeAmplified(instructions []int, phaseSequence []int, input int) int {
+	ios := make([]chan int, len(phaseSequence)+1)
+	for i := range ios {
+		ios[i] = make(chan int, 10)
+	}
+
+	feedbackLoop := func(in chan int, result chan int, loopIndex int) {
+		for i := range in {
+			result <- i
+			ios[loopIndex] <- i
+		}
+		close(result)
+	}
+
+	for i := range phaseSequence {
+		go func(in <-chan int, out chan int, i int) {
+			data := make([]int, len(instructions))
+			for i, v := range instructions {
+				data[i] = v
+			}
+			halt := executionInstructions(data, in, out, false)
+			if halt == nil {
+				panic("Program not halted correctly")
+			}
+			close(out)
+		}(ios[i], ios[i+1], i)
+	}
+
+	results := make(chan int, 10)
+
+	go func() {
+		feedbackLoop(ios[len(ios)-1], results, 0)
+	}()
+
+	max := make(chan int)
+	go reduceMax(results, max)
+
+	// START
+	go func() {
+		for i, phase := range phaseSequence {
+			ios[i] <- phase
+		}
+		ios[0] <- input
+	}()
+
+	return <-max
+}
+
+// see also day05/compute2
 func executionInstructions(data []int, in <-chan int, out chan int, debug bool) error {
 	i := 0
 	for {
