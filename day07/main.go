@@ -31,7 +31,7 @@ func main() {
 func findHighestSignal(puzzle []int, phaseSequence []int) int {
 	max := 0
 	for _, phaseSequences := range permutations(phaseSequence) {
-		out := compute(puzzle, phaseSequences, 0)
+		out := <-compute(puzzle, phaseSequences, 0)
 		if out > max {
 			max = out
 		}
@@ -71,26 +71,38 @@ func readFileAsIntArray(file string) []int {
 	return dl.ParseStringToIntArray(arr)
 }
 
-func compute(instructions []int, phaseSequences [] int, input int) int {
-	io := input
-	for _, phase := range phaseSequences {
-		data := make([]int, len(instructions))
-		for i, v := range instructions {
-			data[i] = v
-		}
-		tio, halt := executionInstructions(data, []int{phase, io}, false)
-		if halt == nil {
-			panic("Program not halted correctly")
-		}
-		io = tio
+func compute(instructions []int, phaseSequence []int, input int) chan int {
+	ios := make([]chan int, len(phaseSequence)+1)
+	for i := range ios {
+		ios[i] = make(chan int)
 	}
-	return io
+
+	for i := range phaseSequence {
+		in := ios[i]
+		out := ios[i+1]
+		go func() {
+			data := make([]int, len(instructions))
+			for i, v := range instructions {
+				data[i] = v
+			}
+			halt := executionInstructions(data, in, out, false)
+			if halt == nil {
+				panic("Program not halted correctly")
+			}
+			close(in)
+		}()
+	}
+
+	for i, phase := range phaseSequence {
+		ios[i] <- phase
+	}
+	ios[0] <- input
+
+	return ios[len(phaseSequence)]
 }
 
 // copy of day5/compute2
-func executionInstructions(data []int, inputs []int, debug bool) (int, error) {
-	usedInputs := 0
-	outputs := make([]int, 0)
+func executionInstructions(data []int, in <-chan int, out chan int, debug bool) error {
 	i := 0
 	for {
 		iOpcode := data[i]
@@ -158,11 +170,11 @@ func executionInstructions(data []int, inputs []int, debug bool) (int, error) {
 			}
 		case 3:
 			{
-				data[data[i+1]] = inputs[usedInputs]
+				next := <-in
+				data[data[i+1]] = next
 				if debug {
-					fmt.Printf("[%05d] IN %d => #%d\n", i, inputs[usedInputs], data[i+1])
+					fmt.Printf("[%05d] IN %d => #%d\n", i, next, data[i+1])
 				}
-				usedInputs++
 				i += 2
 			}
 		case 4:
@@ -173,7 +185,7 @@ func executionInstructions(data []int, inputs []int, debug bool) (int, error) {
 				} else {
 					param1 = data[data[i+1]]
 				}
-				outputs = append(outputs, param1)
+				out <- param1
 				if debug {
 					fmt.Printf("[%05d] OUT #%d\n", i, data[i+1])
 				}
@@ -290,7 +302,7 @@ func executionInstructions(data []int, inputs []int, debug bool) (int, error) {
 				i += 4
 			}
 		case 99:
-			return outputs[len(outputs)-1], errors.New("got Halt And Catch Fire")
+			return errors.New("got Halt And Catch Fire")
 		default:
 			panic(fmt.Sprintf("invalid op code %d (%d)", opcode, iOpcode))
 		}
