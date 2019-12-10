@@ -99,3 +99,28 @@ func MaxIntArrayValue(arr []int) int {
 	}
 	return max
 }
+
+func AbsInt(a int) int {
+	if a < 0 {
+		return -1 * a
+	} else {
+		return a
+	}
+}
+
+// GGT
+func GreatestCommonDivisor(a, b int) int {
+	if a == 0 {
+		return AbsInt(b)
+	}
+	if b == 0 {
+		return AbsInt(a)
+	}
+	d := 0
+	for b != 0 {
+		d = a % b
+		a = b
+		b = d
+	}
+	return AbsInt(a)
+}
