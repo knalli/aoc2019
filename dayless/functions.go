@@ -84,6 +84,14 @@ func BinarySearch(min int, max int, worker func(i int) bool, debug bool) int {
 	}
 }
 
+func MinInt(a, b int) int {
+	if a < b {
+		return a
+	} else {
+		return b
+	}
+}
+
 func MaxInt(a, b int) int {
 	if a > b {
 		return a
