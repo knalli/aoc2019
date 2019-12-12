@@ -4,302 +4,115 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 )
 
 // see also day07
-func ExecutionInstructions(data2 []int, in <-chan int, out chan<- int, debug bool) error {
-	i := 0
+func ExecutionInstructions(program []int, in <-chan int, out chan<- int, debug bool) error {
+	ip := 0
 	relativeBase := 0
-	data := make([]int, math.MaxInt16)
-	copy(data, data2)
+	memory := make([]int, math.MaxInt32)
+	copy(memory, program)
 	for {
-		iOpcode := data[i]
-		opcode := iOpcode
-		if opcode > 10000 {
-			opcode %= 10000
+		instruction := fmt.Sprintf("%05d", memory[ip])
+		opcode, _ := strconv.Atoi(instruction[3:])
+		arg := func(i int) int {
+			switch instruction[3-i] {
+			case '1': // immediate mode (its value)
+				return ip + i
+			case '2': // relative mode
+				return relativeBase + memory[ip+i]
+			default: // 1, position mode
+				return memory[ip+i]
+			}
 		}
-		if opcode > 1000 {
-			opcode %= 1000
+		debugArg := func(i int) string {
+			switch instruction[3-i] {
+			case '1':
+				return fmt.Sprintf("%d", ip+i)
+			case '2':
+				return fmt.Sprintf("#%d+%d", relativeBase, memory[ip+i])
+			default:
+				return fmt.Sprintf("#%d", memory[ip+i])
+			}
 		}
-		if opcode > 100 {
-			opcode %= 100
-		}
-		mode01 := (iOpcode / 100) % 10
-		mode02 := (iOpcode / 1000) % 10
-		mode03 := (iOpcode / 10000) % 10
 		switch opcode {
 		case 1:
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if mode03 == 2 {
-					data[relativeBase+data[i+3]] = param1 + param2
-				} else {
-					data[data[i+3]] = param1 + param2
-				}
-				if debug {
-					fmt.Printf("[%05d] ADD %s %s => #%d\n", i, param1s, param2s, data[i+3])
-				}
-				i += 4
+			if debug {
+				fmt.Printf("[%s] ADD %s %s -> %s\n", instruction, debugArg(1), debugArg(2), debugArg(3))
 			}
+			memory[arg(3)] = memory[arg(1)] + memory[arg(2)]
+			ip += 4
 		case 2:
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if mode03 == 2 {
-					data[relativeBase+data[i+3]] = param1 * param2
-				} else {
-					data[data[i+3]] = param1 * param2
-				}
-				if debug {
-					fmt.Printf("[%05d] MUL %s %s => #%d\n", i, param1s, param2s, data[i+3])
-				}
-				i += 4
+			if debug {
+				fmt.Printf("[%s] MUL %s %s -> %s\n", instruction, debugArg(1), debugArg(2), debugArg(3))
 			}
+			memory[arg(3)] = memory[arg(1)] * memory[arg(2)]
+			ip += 4
 		case 3:
-			{
-				next := <-in
-				if mode01 == 2 {
-					data[relativeBase+data[i+1]] = next
-				} else {
-					data[data[i+1]] = next
-				}
-				if debug {
-					fmt.Printf("[%05d] IN %d => #%d\n", i, next, data[i+1])
-				}
-				i += 2
+			if debug {
+				fmt.Printf("[%s] REA STDIN -> %s\n", instruction, debugArg(1))
 			}
+			memory[arg(1)] = <-in
+			ip += 2
 		case 4:
-			{
-				var param1 int
-				if mode01 == 1 {
-					param1 = data[i+1]
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-				} else {
-					param1 = data[data[i+1]]
-				}
-				out <- param1
-				if debug {
-					fmt.Printf("[%05d] OUT #%d\n", i, data[i+1])
-				}
-				i += 2
+			if debug {
+				fmt.Printf("[%s] WRT %s -> STDOUT\n", instruction, debugArg(1))
 			}
+			out <- memory[arg(1)]
+			ip += 2
 		case 5: // jump-if-true
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if debug {
-					fmt.Printf("[%05d] JIT %s %s\n", i, param1s, param2s)
-				}
-				if param1 != 0 {
-					i = param2
-				} else {
-					i += 3
-				}
+			if debug {
+				fmt.Printf("[%s] JIT %s != 0 -> %s\n", instruction, debugArg(1), debugArg(2))
+			}
+			if memory[arg(1)] != 0 {
+				ip = memory[arg(2)]
+			} else {
+				ip += 3
 			}
 		case 6: // jump-if-false
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if debug {
-					fmt.Printf("[%05d] JIF %s %s\n", i, param1s, param2s)
-				}
-				if param1 == 0 {
-					i = param2
-				} else {
-					i += 3
-				}
+			if debug {
+				fmt.Printf("[%s] JIF %s == 0 -> %s\n", instruction, debugArg(1), debugArg(2))
+			}
+			if memory[arg(1)] == 0 {
+				ip = memory[arg(2)]
+			} else {
+				ip += 3
 			}
 		case 7: // less-than
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if debug {
-					fmt.Printf("[%05d] SLT %s %s => #%d\n", i, param1s, param2s, data[i+3])
-				}
-				if param1 < param2 {
-					if mode03 == 2 {
-						data[relativeBase+data[i+3]] = 1
-					} else {
-						data[data[i+3]] = 1
-					}
-				} else {
-					if mode03 == 2 {
-						data[relativeBase+data[i+3]] = 0
-					} else {
-						data[data[i+3]] = 0
-					}
-				}
-				i += 4
+			if debug {
+				fmt.Printf("[%s] JLT %s < %s -> %s\n", instruction, debugArg(1), debugArg(2), debugArg(3))
 			}
+			if memory[arg(1)] < memory[arg(2)] {
+				memory[arg(3)] = 1
+			} else {
+				memory[arg(3)] = 0
+			}
+			ip += 4
 		case 8: // equals
-			{
-				var param1, param2 int
-				var param1s, param2s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				if mode02 == 1 {
-					param2 = data[i+2]
-					param2s = fmt.Sprintf("%d", data[i+2])
-				} else if mode02 == 2 {
-					param2 = data[relativeBase+data[i+2]]
-					param2s = fmt.Sprintf("#%d", relativeBase+data[i+2])
-				} else {
-					param2 = data[data[i+2]]
-					param2s = fmt.Sprintf("#%d", data[i+2])
-				}
-				if debug {
-					fmt.Printf("[%05d] SIE %s %s => #%d\n", i, param1s, param2s, data[i+3])
-				}
-				if param1 == param2 {
-					if mode03 == 2 {
-						data[relativeBase+data[i+3]] = 1
-					} else {
-						data[data[i+3]] = 1
-					}
-				} else {
-					if mode03 == 2 {
-						data[relativeBase+data[i+3]] = 0
-					} else {
-						data[data[i+3]] = 0
-					}
-				}
-				i += 4
+			if debug {
+				fmt.Printf("[%s] JEQ %s == %s -> %s\n", instruction, debugArg(1), debugArg(2), debugArg(3))
 			}
+			if memory[arg(1)] == memory[arg(2)] {
+				memory[arg(3)] = 1
+			} else {
+				memory[arg(3)] = 0
+			}
+			ip += 4
 		case 9: // adjusts the relative base
-			{
-				var param1 int
-				var param1s string
-				if mode01 == 1 {
-					param1 = data[i+1]
-					param1s = fmt.Sprintf("%d", data[i+1])
-				} else if mode01 == 2 {
-					param1 = data[relativeBase+data[i+1]]
-					param1s = fmt.Sprintf("#%d", relativeBase+data[i+1])
-				} else {
-					param1 = data[data[i+1]]
-					param1s = fmt.Sprintf("#%d", data[i+1])
-				}
-				relativeBase += param1
-				if debug {
-					fmt.Printf("[%05d] REB %s\n", i, param1s)
-				}
-				i += 2
+			if debug {
+				fmt.Printf("[%s] ARB %s -> RB\n", instruction, debugArg(1))
 			}
+			relativeBase += memory[arg(1)]
+			ip += 2
 		case 99:
+			if debug {
+				fmt.Printf("[%s] HLT\n", instruction)
+			}
 			close(out)
 			return errors.New("got Halt And Catch Fire")
 		default:
-			panic(fmt.Sprintf("invalid op code %d (%d)", opcode, iOpcode))
+			panic(fmt.Sprintf("invalid op code %d (%s)", opcode, instruction))
 		}
 	}
 }
