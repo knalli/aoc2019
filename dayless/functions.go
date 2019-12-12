@@ -132,3 +132,8 @@ func GreatestCommonDivisor(a, b int) int {
 	}
 	return AbsInt(a)
 }
+
+// KGV
+func LeastCommonMultiple(a, b int) int {
+	return a * b / GreatestCommonDivisor(a, b)
+}
