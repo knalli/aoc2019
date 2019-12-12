@@ -53,8 +53,9 @@ func main() {
 						break
 					}
 				}
-				if fx {
+				if fx && tick != 0 {
 					mx = tick
+					fmt.Printf("👉 Found circulation x=%d\n", mx)
 				}
 			}
 
@@ -66,8 +67,9 @@ func main() {
 						break
 					}
 				}
-				if fy {
+				if fy && tick != 0 {
 					my = tick
+					fmt.Printf("👉 Found circulation y=%d\n", my)
 				}
 			}
 
@@ -79,8 +81,9 @@ func main() {
 						break
 					}
 				}
-				if fz {
+				if fz && tick != 0 {
 					mz = tick
+					fmt.Printf("👉 Found circulation z=%d\n", mz)
 				}
 			}
 
