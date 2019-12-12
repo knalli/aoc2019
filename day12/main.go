@@ -86,7 +86,7 @@ func main() {
 
 			// Given the pieces of x,y,z: the least common multiple is the first match of all
 			if mx != 0 && my != 0 && mz != 0 {
-				maxStep = dl.LeastCommonMultiple(mx, dl.LeastCommonMultiple(my, mz))
+				maxStep = dl.LeastCommonMultiple(mx, my, mz)
 				return true
 			}
 

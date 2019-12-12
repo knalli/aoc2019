@@ -117,23 +117,43 @@ func AbsInt(a int) int {
 }
 
 // GGT
-func GreatestCommonDivisor(a, b int) int {
-	if a == 0 {
-		return AbsInt(b)
-	}
-	if b == 0 {
+func GreatestCommonDivisor(a int, n ...int) int {
+	gcd := func(a, b int) int {
+		if a == 0 {
+			return AbsInt(b)
+		}
+		if b == 0 {
+			return AbsInt(a)
+		}
+		d := 0
+		for b != 0 {
+			d = a % b
+			a = b
+			b = d
+		}
 		return AbsInt(a)
 	}
-	d := 0
-	for b != 0 {
-		d = a % b
-		a = b
-		b = d
+	switch len(n) {
+	case 0:
+		return a
+	case 1:
+		return gcd(a, n[0])
+	default:
+		return GreatestCommonDivisor(gcd(a, n[0]), n[1:]...)
 	}
-	return AbsInt(a)
 }
 
 // KGV
-func LeastCommonMultiple(a, b int) int {
-	return a * b / GreatestCommonDivisor(a, b)
+func LeastCommonMultiple(a int, n ...int) int {
+	lcm := func(a, b int) int {
+		return a * b / GreatestCommonDivisor(a, b)
+	}
+	switch len(n) {
+	case 0:
+		return a
+	case 1:
+		return lcm(a, n[0])
+	default:
+		return LeastCommonMultiple(lcm(a, n[0]), n[1:]...)
+	}
 }
