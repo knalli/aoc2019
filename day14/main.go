@@ -27,9 +27,13 @@ func main() {
 	{
 		puzzle, _ := dl.ReadFileToArray(AocDayName + "/puzzle1.txt")
 		reactions := newReactions(puzzle)
-		final := dl.BinarySearch(2, 10000000, func(i int) bool {
+		knownForFuel1 := react(reactions, Material{1, "FUEL"}, "ORE")
+		const trillion = 1_000_000_000_000
+		min := trillion / knownForFuel1.Amount
+		max := trillion / knownForFuel1.Amount * 2
+		final := dl.BinarySearch(min, max, func(i int) bool {
 			result := react(reactions, Material{i, "FUEL"}, "ORE")
-			return result != nil && result.Amount > 1_000_000_000_000
+			return result != nil && result.Amount > trillion
 		}, true)
 		dl.PrintSolution(fmt.Sprintf("Maximum mount of 'FUEL' is %d", final-1))
 	}
