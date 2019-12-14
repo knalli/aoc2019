@@ -1,6 +1,7 @@
 package main
 
 import (
+	"container/list"
 	dl "de.knallisworld/aoc/aoc2019/dayless"
 	"fmt"
 	"strings"
@@ -32,7 +33,7 @@ func main() {
 		min := trillion / knownForFuel1.Amount
 		max := trillion / knownForFuel1.Amount * 2
 		final := dl.BinarySearch(min, max, func(i int) bool {
-			result := react(reactions, Material{i, "FUEL"}, "ORE")
+			result := react2(reactions, Material{i, "FUEL"}, "ORE")
 			return result != nil && result.Amount > trillion
 		}, true)
 		dl.PrintSolution(fmt.Sprintf("Maximum mount of 'FUEL' is %d", final-1))
@@ -108,6 +109,61 @@ func react(reactions []Reaction, targetMaterial Material, baseChemical string) *
 	} else {
 		return nil
 	}
+}
+
+func react2(reactions []Reaction, targetMaterial Material, baseChemical string) *Material {
+
+	// build map for lookup performance
+	reactionMap := make(map[string]Reaction)
+	for _, r := range reactions {
+		reactionMap[r.output.Chemical] = r
+	}
+
+	type Value struct {
+		chemical string
+		amount   int
+	}
+
+	baseAmount := 0
+	available := make(map[string]int)
+	missing := list.New()
+	missing.PushFront(Value{targetMaterial.Chemical, targetMaterial.Amount})
+	for missing.Len() > 0 {
+
+		// pop from missing
+		element := missing.Front()
+		material := element.Value.(Value)
+		missing.Remove(element)
+
+		requiredAmount := material.amount
+
+		// check for existing amount
+		if availableAmount, exist := available[material.chemical]; exist {
+			consumed := dl.MinInt(requiredAmount, availableAmount)
+			available[material.chemical] = availableAmount - consumed
+			requiredAmount -= consumed
+		}
+
+		if requiredAmount > 0 {
+			reaction := reactionMap[material.chemical]
+			mul := 1
+			for reaction.output.Amount*mul < requiredAmount {
+				mul++
+			}
+			for _, input := range reaction.inputs {
+				if input.Chemical == baseChemical {
+					baseAmount += input.Amount * mul
+				} else {
+					missing.PushBack(Value{input.Chemical, input.Amount * mul})
+				}
+			}
+			// rest
+			available[reaction.output.Chemical] = reaction.output.Amount*mul - requiredAmount
+		}
+
+	}
+
+	return &Material{Amount: baseAmount, Chemical: baseChemical}
 }
 
 type Material struct {
