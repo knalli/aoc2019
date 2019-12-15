@@ -14,24 +14,35 @@ const AocDay = 15
 const AocDayName = "day15"
 const AocDayTitle = "Day 15"
 
+const debugRenderTick = time.Duration(50)
+const debugClearScreenOnRender = true
+
 func main() {
 	dl.PrintDayHeader(AocDay, AocDayTitle)
 	defer dl.TimeTrack(time.Now(), AocDayName)
 
+	debug := false
+	var solution1 int
+	var solution2 int
+
 	{
 		dl.PrintStepHeader(1)
 		program := dl.ReadFileAsIntArray(AocDayName + "/puzzle1.txt")
-		movements := findOptimalPathToOxygen(program, false)
-		dl.PrintSolution(fmt.Sprintf("Number of movements is %d", movements))
+		solution1 = findOptimalPathToOxygen(program, debug)
+		dl.PrintSolution(fmt.Sprintf("Number of movements is %d", solution1))
 	}
 
 	{
 		dl.PrintStepHeader(2)
 		program := dl.ReadFileAsIntArray(AocDayName + "/puzzle1.txt")
-		world, oxygenPos := discoverMap(program, false, false)
+		world, oxygenPos := discoverMap(program, false, debug)
 		minute := 0
 		world[oxygenPos] = OXYGEN
 		for {
+			if debug {
+				renderMap(world, Point{math.MinInt32, math.MinInt32}, Point{math.MinInt32, math.MinInt32}, list.New(), list.New())
+				time.Sleep(debugRenderTick * time.Millisecond)
+			}
 			currentFree := 0
 			for _, v := range world {
 				switch v {
@@ -59,8 +70,17 @@ func main() {
 			}
 			minute++
 		}
-		renderMap(world, Point{math.MinInt32, math.MinInt32}, Point{math.MinInt32, math.MinInt32}, list.New(), list.New())
-		dl.PrintSolution(fmt.Sprintf("%d minutes until all is filled with oxygen", minute))
+		solution2 = minute
+
+		dl.PrintSolution(fmt.Sprintf("%d minutes until all is filled with oxygen", solution2))
+	}
+
+	if debug {
+		// print again
+		dl.PrintStepHeader(1)
+		dl.PrintSolution(fmt.Sprintf("Number of movements is %d", solution1))
+		dl.PrintStepHeader(2)
+		dl.PrintSolution(fmt.Sprintf("%d minutes until all is filled with oxygen", solution2))
 	}
 
 }
@@ -98,6 +118,11 @@ const DROID_MOVED = 1
 const DROID_MOVED_AND_FOUND = 2
 
 func renderMap(world map[Point]int16, pos Point, oxygen Point, track *list.List, trackPos *list.List) {
+
+	if debugClearScreenOnRender {
+		print("\033[H\033[2J")
+	}
+
 	bl := Point{0, 0}
 	tr := Point{0, 0}
 	for p := range world {
@@ -146,7 +171,7 @@ func renderMap(world map[Point]int16, pos Point, oxygen Point, track *list.List,
 				} else {
 					switch v {
 					case WALL:
-						line += string(v)
+						line += fmt.Sprintf("%s", Yellow(string(v)))
 					case FREE:
 						line += string(FREE)
 					case FREE_VISITED:
@@ -162,8 +187,10 @@ func renderMap(world map[Point]int16, pos Point, oxygen Point, track *list.List,
 		fmt.Printf("%s\n", line)
 	}
 	fmt.Println()
-	fmt.Printf("Directions: ")
+
+	// movements/oxygens
 	movements := 0
+	movementsAsString := ""
 	x := track.Front()
 	for x != nil {
 		s := ""
@@ -177,11 +204,20 @@ func renderMap(world map[Point]int16, pos Point, oxygen Point, track *list.List,
 		case EAST:
 			s = ">"
 		}
-		fmt.Printf("%s ", s)
+		movementsAsString += fmt.Sprintf("%s", s)
 		x = x.Next()
 		movements++
 	}
-	fmt.Printf(" total = %d\n", movements)
+	fmt.Printf("Movements: %s [total = %03d]\n", movementsAsString, movements)
+
+	// oxygens
+	oxygens := 0
+	for _, v := range world {
+		if v == OXYGEN {
+			oxygens++
+		}
+	}
+	fmt.Printf("Oxygens:    [total = %03d]\n", oxygens)
 	fmt.Println()
 }
 
@@ -284,6 +320,7 @@ func handle(world map[Point]int16, pos Point, dir int, blocked bool) (int, bool)
 }
 
 func findOptimalPathToOxygen(program []int, debug bool) int {
+
 	world := make(map[Point]int16, 0)
 
 	in := make(chan int)   // program stdin
@@ -307,7 +344,7 @@ func findOptimalPathToOxygen(program []int, debug bool) int {
 			// render
 			if debug {
 				renderMap(world, pos, oxygen, track, trackPos)
-				time.Sleep(1 * time.Millisecond)
+				time.Sleep(debugRenderTick * time.Millisecond)
 			}
 
 			status := <-out
@@ -400,6 +437,10 @@ func findOptimalPathToOxygen(program []int, debug bool) int {
 					trackPos.Remove(trackPos.Back())
 				}
 
+				if debug {
+					renderMap(world, pos, oxygen, track, trackPos)
+				}
+
 				if status == DROID_MOVED_AND_FOUND {
 					if debug {
 						fmt.Println("FOUND!")
@@ -446,12 +487,15 @@ func findOptimalPathToOxygen(program []int, debug bool) int {
 
 	<-fin // wait for end of all coroutines
 
-	renderMap(world, pos, oxygen, track, trackPos)
+	if debug {
+		renderMap(world, pos, oxygen, track, trackPos)
+	}
 
 	return track.Len()
 }
 
 func discoverMap(program []int, stopAtOxy bool, debug bool) (map[Point]int16, Point) {
+
 	world := make(map[Point]int16, 0)
 
 	in := make(chan int)   // program stdin
@@ -475,7 +519,7 @@ func discoverMap(program []int, stopAtOxy bool, debug bool) (map[Point]int16, Po
 			// render
 			if debug {
 				renderMap(world, pos, oxygenPos, track, trackPos)
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(debugRenderTick * time.Millisecond)
 			}
 
 			status := <-out
@@ -633,7 +677,9 @@ func discoverMap(program []int, stopAtOxy bool, debug bool) (map[Point]int16, Po
 
 	<-fin // wait for end of all coroutines
 
-	renderMap(world, pos, oxygenPos, track, trackPos)
+	if debug {
+		renderMap(world, pos, oxygenPos, track, trackPos)
+	}
 
 	return world, oxygenPos
 }
