@@ -40,21 +40,18 @@ func main() {
 		world = world[:len(world)-3] // remove last linebreak
 		movements := findMovements(splitWorld(world))
 		fmt.Printf("Movements: %s\n\n", movements)
-		a, b, c, main, groups := findRepeatingGroups(movements, 3, 20)
+		main, _, functions := DeflateString(movements, ",", 3, 20)
 		fmt.Printf("Main routine: %s\n", main)
-		fmt.Printf("Function A: %s\n", groups[0])
-		fmt.Printf("Function C: %s\n", groups[1])
-		fmt.Printf("Function B: %s\n", groups[2])
-		if debug {
-			fmt.Printf("A=%d,B=%d,C=%d\n", a, b, c)
-		}
+		fmt.Printf("Function A: %s\n", functions[0])
+		fmt.Printf("Function C: %s\n", functions[1])
+		fmt.Printf("Function B: %s\n", functions[2])
 
 		inputs := make([]int, 0)
 		for _, c := range main {
 			inputs = append(inputs, int(c))
 		}
 		inputs = append(inputs, '\n')
-		for _, group := range groups {
+		for _, group := range functions {
 			for i, v := range strings.Split(group, ",") {
 				if i > 0 {
 					inputs = append(inputs, ',')
@@ -89,102 +86,128 @@ func main() {
 
 }
 
-func findRepeatingGroups(line string, groups int, maxCommandLength int) (int, int, int, string, []string) {
+func DeflateString(line string, separator string, blockNum int, blockSize int) (string, []int, []string) {
+
 	l := len(line)
-	lengths := make([]int, groups)
-	for i := 0; i < groups; i++ {
-		lengths[i] = 1
+
+	type Pair struct {
+		Length  int
+		Data    string
+		Filling string
 	}
-	a := 0
-	b := 0
-	c := 0
+
+	pairs := make([]Pair, blockNum)
+	for i := 0; i < blockNum; i++ {
+		pairs[i] = Pair{0, "", ""}
+	}
+
+	if blockNum >= 'L' {
+		// for this specific solution enough, but 'L' will break the "replace-approach" b/c dir movements
+		// alternative: store pair ranges
+		panic("specified blockNum not supported")
+	}
+
+	blockFillingKeys := ""
+	for i := 0; i < len(pairs); i++ {
+		name := string('A' + i)
+		blockFillingKeys += name
+		pairs[i].Filling = name
+	}
 
 	findNextFree := func(line string) int {
-		parts := strings.Split(line, ",")
+		parts := strings.Split(line, separator)
 		for i, part := range parts {
-			if part != "A" && part != "B" && part != "C" {
+			if !strings.ContainsAny(part, blockFillingKeys) {
 				return i
 			}
 		}
 		return -1
 	}
 
+	isBlockColliding := func(begin int, end int, block string) bool {
+		return strings.ContainsAny(block, blockFillingKeys)
+	}
+
+	sumLengths := func() int {
+		total := 0
+		for _, pair := range pairs {
+			total += pair.Length
+		}
+		return total
+	}
+
 	for {
-		temp := "" + line
-		a++
-		if a+b+c > l {
-			a = 1
-			b++
+
+		pairs[0].Length++
+		for i := 0; i < len(pairs)-1; i++ {
+			if sumLengths() > l {
+				pairs[i].Length = 1
+				pairs[i+1].Length++
+			}
 		}
-		if a+b+c > l {
-			b = 1
-			c++
-		}
-		if a+b+c > l {
+		if sumLengths() > l {
 			break
+		}
+
+		{
+			valid := true
+			for i := 0; i < len(pairs); i++ {
+				valid = valid && pairs[i].Length > 0
+			}
+			if !valid {
+				continue
+			}
 		}
 		//fmt.Printf("%02d %02d %02d\n", a, b, c)
 
-		var subA, subB, subC string
-
-		{
-			parts := strings.Split(temp, ",")
-			avail := findNextFree(temp)
-			if avail+2*a > len(parts) {
-				continue
-			}
-			subA = strings.Join(parts[avail:avail+2*a], ",")
-			if strings.ContainsAny(subA, "ABC") {
-				continue
-			}
-			if len(subA) > maxCommandLength {
-				continue
-			}
-			temp = strings.Replace(temp, subA, "A", -1)
+		temp := "" + line // copy/reset
+		for i := range pairs {
+			pairs[i].Data = ""
 		}
 
-		{
-			parts := strings.Split(temp, ",")
-			avail := findNextFree(temp)
-			if avail+2*b > len(parts) {
-				continue
-			}
-			subB = strings.Join(parts[avail:avail+2*b], ",")
-			if strings.ContainsAny(subB, "ABC") {
-				continue
-			}
-			if len(subB) > maxCommandLength {
-				continue
-			}
-			temp = strings.Replace(temp, subB, "B", -1)
-		}
+		validBlocks := false
+		for i := 0; i < blockNum; i++ {
+			pair := &pairs[i]
+			parts := strings.Split(temp, separator)
 
-		{
-			parts := strings.Split(temp, ",")
-			avail := findNextFree(temp)
-			if avail+2*c > len(parts) {
+			blockBegin := findNextFree(temp)
+			if blockBegin < 0 {
 				continue
 			}
-			subC = strings.Join(parts[avail:avail+2*c], ",")
-			if strings.ContainsAny(subC, "ABC") {
+			blockEnd := blockBegin + 2*pair.Length
+			if blockEnd > len(parts) {
 				continue
 			}
-			if len(subC) > maxCommandLength {
+
+			sub := strings.Join(parts[blockBegin:blockEnd], separator)
+			if isBlockColliding(blockBegin, blockEnd, sub) || len(sub) > blockSize {
 				continue
 			}
-			temp = strings.Replace(temp, subC, "C", -1)
+
+			pair.Data = sub
+			temp = strings.Replace(temp, sub, pair.Filling, -1)
+			validBlocks = true
+		}
+		if !validBlocks {
+			continue
 		}
 
 		if -1 == findNextFree(temp) {
-			if len(temp) > maxCommandLength {
-				fmt.Printf("Found main function, but exceeding command length: %s\n", temp)
+			if len(temp) > blockSize {
+				// mt.Printf("Found main function, but exceeding command length: %s\n", temp)
 				continue
 			}
-			return a, b, c, temp, []string{subA, subB, subC}
+			blockLengths := make([]int, blockNum)
+			blockData := make([]string, blockNum)
+			for i := 0; i < blockNum; i++ {
+				blockLengths[i] = pairs[i].Length
+				blockData[i] = pairs[i].Data
+			}
+			return temp, blockLengths, blockData
 		}
 	}
 
-	return 0, 0, 0, line, nil
+	return line, []int{0, 0, 0}, nil
 }
 
 func findMovements(world [][]uint8) string {
