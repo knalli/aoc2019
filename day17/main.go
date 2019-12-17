@@ -5,6 +5,8 @@ import (
 	day09 "de.knallisworld/aoc/aoc2019/day09/lib"
 	dl "de.knallisworld/aoc/aoc2019/dayless"
 	"fmt"
+	tm "github.com/buger/goterm"
+	. "github.com/logrusorgru/aurora"
 	"strings"
 	"time"
 )
@@ -32,7 +34,7 @@ func main() {
 	}
 
 	{
-		debug := false
+		videoStreaming := true
 		dl.PrintStepHeader(2)
 		program := dl.ReadFileAsIntArray(AocDayName + "/puzzle1.txt")
 		world := RenderAsciiToString(runProgram1(program, false))
@@ -68,22 +70,63 @@ func main() {
 			inputs = append(inputs, '\n')
 		}
 
-		inputs = append(inputs, 'n')
-		inputs = append(inputs, '\n')
+		if videoStreaming {
+			for i := 0; i < len(strings.Split(movements, ","))/2; i++ {
+				inputs = append(inputs, 'y')
+				inputs = append(inputs, '\n')
+			}
+		} else {
+			inputs = append(inputs, 'n')
+			inputs = append(inputs, '\n')
+		}
 
 		//println("Instructions")
 		//println(RenderAsciiToString(inputs))
 
-		println("Run program...")
+		fmt.Println("Run program...")
 		program[0] = 2
-		output := runProgram2(program, inputs, false)
-		if debug {
-			println(RenderAsciiToString(output))
+		outputChan := make(chan string)
+		wait := make(chan bool)
+		if videoStreaming {
+			go func() {
+				tm.Clear()
+				received := 0
+				//noinspection ALL
+				tm.Printf("Live video feed (syncing):\n")
+				for line := range outputChan {
+					if line == "" {
+						received++
+						time.Sleep(60 * time.Millisecond)
+						tm.MoveCursor(1, 1)
+						//noinspection ALL
+						tm.Printf("Live video feed (received %03d images):\n", received)
+					}
+					//noinspection ALL
+					tm.Println(colorize(line))
+					tm.Flush()
+				}
+				//noinspection ALL
+				tm.Println("\nLive video feed ended")
+				wait <- true
+			}()
+		}
+		output := runProgram2(program, inputs, outputChan, videoStreaming, false)
+		if videoStreaming {
+			<-wait
 		}
 		dust := dl.MaxInt(output[len(output)-2], output[len(output)-1]) // workaround (last output is sometimes 0)
 		dl.PrintSolution(fmt.Sprintf("Collected dust is %d", dust))
 	}
 
+}
+
+func colorize(line string) string {
+	line = strings.Replace(line, "#", fmt.Sprintf("%s", Yellow("#")), -1)
+	line = strings.Replace(line, ".", fmt.Sprintf("%s", Black(".")), -1)
+	for _, s := range []string{"^", ">", "v", "<"} {
+		line = strings.Replace(line, s, fmt.Sprintf("%s", Red(Bold(s))), -1)
+	}
+	return line
 }
 
 func DeflateString(line string, separator string, blockNum int, blockSize int) (string, []int, []string) {
@@ -378,7 +421,7 @@ func runProgram1(program []int, debug bool) []int {
 	return world
 }
 
-func runProgram2(program []int, inputs []int, debug bool) []int {
+func runProgram2(program []int, inputs []int, output chan string, videoStreaming bool, debug bool) []int {
 
 	result := make([]int, 0)
 
@@ -402,9 +445,16 @@ func runProgram2(program []int, inputs []int, debug bool) []int {
 			select {
 			case <-halt:
 				fin <- true
+				close(output)
 				return
 			default:
-				result = append(result, <-out)
+				b := <-out
+				if videoStreaming && b == '\n' {
+					output <- RenderAsciiToString(result)
+					result = make([]int, 0)
+				} else {
+					result = append(result, b)
+				}
 			}
 		}
 	}()
