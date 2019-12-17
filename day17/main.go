@@ -187,54 +187,6 @@ func findRepeatingGroups(line string, groups int, maxCommandLength int) (int, in
 	return 0, 0, 0, line, nil
 }
 
-func findTopRepeatingString(line string, minLength int, maxLength int, max int) []string {
-	result := make([]string, 0)
-	temp := "" + line
-	for i := 0; i < max; i++ {
-		r := findLongestRepeatingString(temp, minLength, maxLength)
-		if r == "" {
-			break
-		}
-		result = append(result, r)
-		temp = strings.Replace(temp, r, "_", -1)
-	}
-	return result
-}
-
-func findLongestRepeatingString(line string, minLength int, maxLength int) string {
-
-	length := len(line)
-	found := make(map[string]int)
-	longestStrike := ""
-
-	for ; minLength < length && minLength <= maxLength; minLength++ {
-		known := make(map[string]bool)
-		for pos := 0; pos+minLength < length; pos++ {
-			needle := line[pos : pos+minLength]
-			if _, exist := known[needle]; exist {
-				continue
-			} else {
-				known[needle] = true
-			}
-			count := 0
-			for search := pos + minLength; search+minLength < length; search++ {
-				sub := line[search : search+minLength]
-				if needle == sub {
-					count++
-				}
-			}
-			if count > 0 {
-				found[needle] = count
-				if len(needle) > len(longestStrike) {
-					longestStrike = needle
-				}
-			}
-		}
-	}
-
-	return longestStrike
-}
-
 func findMovements(world [][]uint8) string {
 	pos := findPosition(world, func(_, _ int, v uint8) bool {
 		return v == '^' || v == '>' || v == 'v' || v == '<'
