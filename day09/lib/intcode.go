@@ -1,6 +1,7 @@
 package day09
 
 import (
+	dl "de.knallisworld/aoc/aoc2019/dayless"
 	"errors"
 	"fmt"
 	"math"
@@ -11,7 +12,7 @@ import (
 func ExecutionInstructions(program []int, in <-chan int, out chan<- int, debug bool) error {
 	ip := 0
 	relativeBase := 0
-	memory := make([]int, math.MaxInt32)
+	memory := make([]int, dl.MaxInt(math.MaxInt16, 2*len(program)))
 	copy(memory, program)
 	for {
 		instruction := fmt.Sprintf("%05d", memory[ip])
