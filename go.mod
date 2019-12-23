@@ -8,5 +8,6 @@ require (
 	github.com/logrusorgru/aurora v0.0.0-20191116043053-66b7ad493a23
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.10 // indirect
+	github.com/urfave/cli v1.22.2 // indirect
 	github.com/yourbasic/graph v0.0.0-20170921192928-40eb135c0b26
 )
