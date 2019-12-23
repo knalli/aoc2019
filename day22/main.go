@@ -32,7 +32,11 @@ func main() {
 			}
 		}
 		dl.PrintSolution(fmt.Sprintf("The position of card '%d' is #%d", card, position))
+
+		// reworked using simple functions (prep for part2)
 		dl.PrintSolution(fmt.Sprintf("The position of card '%d' (tracked) is #%d", card, trackCard(length, puzzle, repeat, card)))
+
+		// first try for part2, left for the records
 		dl.PrintSolution(fmt.Sprintf("Backtracing the final position #%d, card is '%d'", position, traceCardByPosition(length, puzzle, 1, int64(position))))
 
 		{
@@ -54,7 +58,6 @@ func main() {
 
 		dl.PrintSolution(fmt.Sprintf("%d", solve2(puzzle, length, repeat, card)))
 
-		// NOT CORRECT
 		{
 			a, b := resolveInverseFunctionParams(length, puzzle)
 
