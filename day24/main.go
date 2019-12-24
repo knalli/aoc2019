@@ -65,7 +65,7 @@ func solution2(grid *day18.Map, minutes int) int {
 		list:    l,
 	}
 	for i := 0; i < minutes; i++ {
-		state = tick2(state)
+		state = tickRecursive(state)
 	}
 
 	return state.CountBugs()
@@ -165,7 +165,7 @@ func createEmptyGrid() *day18.Map {
 	return &grid
 }
 
-func tick2(state *GridState) *GridState {
+func tickRecursive(state *GridState) *GridState {
 	next := state.Clone()
 	next.level++
 
@@ -203,10 +203,12 @@ func tick2(state *GridState) *GridState {
 		return result
 	}
 
-	scans := getScans(l)
-	// fmt.Printf("Was %d, scans %d\n", next.list.Len(), len(scans))
+	isBug := func(v string) bool {
+		return v == BUGS
+	}
+
 	next.list.Init()
-	for _, scan := range scans {
+	for _, scan := range getScans(l) {
 		grid := scan.grid
 		inner := scan.inner
 		outer := scan.outer
@@ -215,14 +217,14 @@ func tick2(state *GridState) *GridState {
 			if p.X == 2 && p.Y == 2 {
 				return
 			}
-			if v == BUGS {
-				adjacentBugs := countAdjacentBugs(p, outer, grid, inner)
-				if adjacentBugs != 1 {
+			if isBug(v) {
+				bugs := countAdjacentBugs(p, outer, grid, inner, isBug)
+				if bugs != 1 {
 					result.Set(p, EMPTY)
 				}
-			} else if v == EMPTY {
-				adjacentBugs := countAdjacentBugs(p, outer, grid, inner)
-				if 1 <= adjacentBugs && adjacentBugs <= 2 {
+			} else {
+				bugs := countAdjacentBugs(p, outer, grid, inner, isBug)
+				if bugs == 1 || bugs == 2 {
 					result.Set(p, BUGS)
 				}
 			}
@@ -233,67 +235,69 @@ func tick2(state *GridState) *GridState {
 	return next
 }
 
-func countAdjacentBugs(p day18.Point, outer *day18.Map, grid *day18.Map, inner *day18.Map) int {
-	adjacentBugs := 0
-	for _, adjacent := range p.Adjacents() {
+func countAdjacentBugs(p day18.Point, outer *day18.Map, grid *day18.Map, inner *day18.Map, condition func(v string) bool) int {
+	total := 0
+	leftOuterPoint := day18.Point{X: 1, Y: 2}
+	rightOuterPoint := day18.Point{X: 3, Y: 2}
+	topOuterPoint := day18.Point{X: 2, Y: 1}
+	bottomOuterPoint := day18.Point{X: 2, Y: 3}
+	for _, a := range p.Adjacents() {
 		// look for outer
-		if adjacent.X == -1 {
-			if *outer.Get(day18.Point{X: 1, Y: 2}) == BUGS {
-				adjacentBugs++
+		if a.X == -1 {
+			if condition(*outer.Get(leftOuterPoint)) {
+				total++
 			}
-		} else if adjacent.X == grid.Width() {
-			if *outer.Get(day18.Point{X: 3, Y: 2}) == BUGS {
-				adjacentBugs++
-			}
-		}
-		if adjacent.Y == -1 {
-			if *outer.Get(day18.Point{X: 2, Y: 1}) == BUGS {
-				adjacentBugs++
-			}
-		} else if adjacent.Y == grid.Height() {
-			if *outer.Get(day18.Point{X: 2, Y: 3}) == BUGS {
-				adjacentBugs++
+		} else if a.X == grid.Width() {
+			if condition(*outer.Get(rightOuterPoint)) {
+				total++
 			}
 		}
-		if !grid.Contains(adjacent) {
+		if a.Y == -1 {
+			if condition(*outer.Get(topOuterPoint)) {
+				total++
+			}
+		} else if a.Y == grid.Height() {
+			if condition(*outer.Get(bottomOuterPoint)) {
+				total++
+			}
+		}
+		if !grid.Contains(a) {
 			continue
 		}
 		// look for inner
-		if adjacent.X == 2 && adjacent.Y == 2 {
-			if p.X < adjacent.X {
+		if a.X == 2 && a.Y == 2 {
+			if p.X < a.X {
 				// left side
 				inner.EachColumnCell(0, func(_ day18.Point, v2 string) {
-					if v2 == BUGS {
-						adjacentBugs++
+					if condition(v2) {
+						total++
 					}
 				})
-			} else if p.X > adjacent.X {
+			} else if p.X > a.X {
 				// right side
 				inner.EachColumnCell(grid.Width()-1, func(_ day18.Point, v2 string) {
-					if v2 == BUGS {
-						adjacentBugs++
+					if condition(v2) {
+						total++
 					}
 				})
-			} else if p.Y < adjacent.Y {
+			} else if p.Y < a.Y {
 				// top side
 				inner.EachRowColumn(0, func(_ day18.Point, v2 string) {
-					if v2 == BUGS {
-						adjacentBugs++
+					if condition(v2) {
+						total++
 					}
 				})
-			} else if p.Y > adjacent.Y {
+			} else if p.Y > a.Y {
 				// bottom side
 				inner.EachRowColumn(grid.Height()-1, func(_ day18.Point, v2 string) {
-					if v2 == BUGS {
-						adjacentBugs++
+					if condition(v2) {
+						total++
 					}
 				})
 			}
-		} else {
-			if *grid.Get(adjacent) == BUGS {
-				adjacentBugs++
-			}
+		} else if condition(*grid.Get(a)) {
+			total++
 		}
 	}
-	return adjacentBugs
+	return total
 }
