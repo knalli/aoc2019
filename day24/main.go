@@ -218,12 +218,12 @@ func tickRecursive(state *GridState) *GridState {
 				return
 			}
 			if isBug(v) {
-				bugs := countAdjacentBugs(p, outer, grid, inner, isBug)
+				bugs := countRecursiveAdjacents(p, outer, grid, inner, isBug)
 				if bugs != 1 {
 					result.Set(p, EMPTY)
 				}
 			} else {
-				bugs := countAdjacentBugs(p, outer, grid, inner, isBug)
+				bugs := countRecursiveAdjacents(p, outer, grid, inner, isBug)
 				if bugs == 1 || bugs == 2 {
 					result.Set(p, BUGS)
 				}
@@ -235,7 +235,7 @@ func tickRecursive(state *GridState) *GridState {
 	return next
 }
 
-func countAdjacentBugs(p day18.Point, outer *day18.Map, grid *day18.Map, inner *day18.Map, condition func(v string) bool) int {
+func countRecursiveAdjacents(p day18.Point, outer *day18.Map, grid *day18.Map, inner *day18.Map, condition func(v string) bool) int {
 	total := 0
 	leftOuterPoint := day18.Point{X: 1, Y: 2}
 	rightOuterPoint := day18.Point{X: 3, Y: 2}
