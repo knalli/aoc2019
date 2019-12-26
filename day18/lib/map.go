@@ -94,8 +94,9 @@ func (m Map) FindFirst(filter func(v string) bool) *Point {
 	return nil
 }
 
-func (m Map) Set(p Point, v string) {
+func (m Map) Set(p Point, v string) *Map {
 	m[p.Y][p.X] = v
+	return &m
 }
 
 func (m Map) Contains(p Point) bool {
@@ -113,7 +114,7 @@ func (m Map) Get(p Point) *string {
 	}
 }
 
-func (m Map) Clone() Map {
+func (m Map) Clone() *Map {
 	clone := make(Map, len(m))
 	for y := 0; y < len(m); y++ {
 		clone[y ] = make([]string, len(m[y]))
@@ -121,7 +122,7 @@ func (m Map) Clone() Map {
 			clone[y][x] = m[y][x]
 		}
 	}
-	return clone
+	return &clone
 }
 
 func (m Map) Height() int {
