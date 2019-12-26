@@ -147,14 +147,19 @@ func (r *Room) Equal(o *Room) bool {
 
 var sentinelRoom = Room{Name: "SENTINEL"}
 
+// runs the actual auto solving
 func run(program []int, debug bool) {
 
+	// map of all rooms
 	rooms := make(map[string]*Room)
-	blacklistItems := make([]string, 0)
-	securityRoomPath := make([]string, 0)
-	itemMap := make(map[string]string) // itemName to roomName
+	// map of item to room (so we know in which room each item is actually)
+	itemMap := make(map[string]string)
+	// list of all found items
 	foundItems := make([]string, 0)
+	// list of all items which are well-known being problematic (droid stuck, crashed, ...)
+	blacklistItems := make([]string, 0)
 
+	// internal queue state type
 	type State struct {
 		Commands  []string
 		Direction dl.Direction
@@ -168,6 +173,10 @@ func run(program []int, debug bool) {
 		LastRoom:  nil,
 	})
 
+	// Each state is the start point for the droid. Additional states will be
+	// created and pushed into the queue if the droid made an irreversible
+	// decision, it crashed or it found a branch (more than one possible
+	// direction to go).
 	for queue.Len() > 0 {
 
 		var state *State
@@ -177,15 +186,28 @@ func run(program []int, debug bool) {
 			queue.Remove(next)
 		}
 
+		// if state contains commands, this is the replay list
 		commandReplay := make([]string, len(state.Commands))
 		copy(commandReplay, state.Commands)
+
+		// the path of commands <-> the way to the current room
 		commandPath := make([]string, 0)
-		var prevDirection dl.Direction = state.Direction
-		var prevRoom *Room = state.LastRoom
+
+		// working var: the previous direction
+		var prevDirection = state.Direction
+		// working var: the previous room
+		var prevRoom = state.LastRoom
+
+		// working var: the list of found items
 		inventory := make([]string, 0)
 
+		// defines if the is expected or not: this is a hint of an item issue..
 		unexpectedEnd := true
+
+		// for this state, create a new droid
 		droid := newDroid(program, debug)
+
+		// handle droid I/O
 		go func() {
 			var roomName string
 			var doorParsing bool
@@ -196,6 +218,7 @@ func run(program []int, debug bool) {
 			var lastEmptyLines int
 			var lastMessages []string
 
+			// set of output line problem detectors
 			lineProblemDetectors := []func(line string) (bool, bool){
 				func(line string) (bool, bool) {
 					l := len(lastMessages)
@@ -227,6 +250,7 @@ func run(program []int, debug bool) {
 				},
 			}
 
+			// set of advanced line problem detectors
 			advancedProblemDetectors := []func() (bool, bool){
 				func() (bool, bool) {
 					if prevRoom != nil && prevRoom.Name == roomName {
@@ -240,6 +264,7 @@ func run(program []int, debug bool) {
 
 			for line := range droid.out {
 
+				// count consecutive empty lines
 				if len(line) == 0 {
 					lastEmptyLines++
 				} else {
@@ -251,6 +276,7 @@ func run(program []int, debug bool) {
 					fmt.Println(line)
 				}
 
+				// extract room name
 				if len(line) > 0 && line[0:3] == "== " {
 					reg, _ := regexp.Compile("== (.*) ==")
 					r := reg.FindStringSubmatch(line)
@@ -260,6 +286,7 @@ func run(program []int, debug bool) {
 					lastMessages = []string{}
 				}
 
+				// extract directions/doors
 				if line == "Doors here lead:" {
 					doorParsing = true
 					doorOptions = []string{}
@@ -269,6 +296,7 @@ func run(program []int, debug bool) {
 					doorParsing = false
 				}
 
+				// extract items
 				if line == "Items here:" {
 					itemParsing = true
 					itemOptions = []string{}
@@ -281,7 +309,7 @@ func run(program []int, debug bool) {
 					itemParsing = false
 				}
 
-				// room output ready (without command interaction)
+				// analyse room if output ready (without command interaction)
 				if line == "Command?" || (len(roomName) > 0 && !doorParsing && len(doorOptions) > 0 && !itemParsing && lastEmptyLines > 2) {
 
 					// store knowledge about map (room)
@@ -309,8 +337,6 @@ func run(program []int, debug bool) {
 					}
 
 					if roomName == "Pressure-Sensitive Floor" {
-						securityRoomPath = make([]string, len(commandPath))
-						copy(securityRoomPath, commandPath)
 						fmt.Println("🎉 Found security floor")
 						unexpectedEnd = false
 						go droid.Stop()
@@ -334,7 +360,7 @@ func run(program []int, debug bool) {
 
 					fmt.Printf("👉 Putting item '%s' on blacklist...\n", item)
 
-					// restart
+					// restart droid in next run
 					queue.PushBack(&State{
 						Commands:  commandPath,
 						Direction: prevDirection,
@@ -390,7 +416,7 @@ func run(program []int, debug bool) {
 
 						fmt.Printf("👉 Putting item '%s' on blacklist...\n", item)
 
-						// restart
+						// restart in next run
 						queue.PushBack(&State{
 							Commands:  commandPath,
 							Direction: prevDirection,
@@ -404,6 +430,7 @@ func run(program []int, debug bool) {
 						break
 					}
 
+					// extract still unvisited doors/directions
 					unvisited := make([]dl.Direction, 0)
 					for _, dir := range []dl.Direction{
 						dl.NORTH,
@@ -416,7 +443,7 @@ func run(program []int, debug bool) {
 						}
 					}
 
-					// branching required (restart droid)
+					// If more than one direction is unvisited, we need an additional branch.
 					for len(unvisited) > 1 {
 						nextDirection := unvisited[len(unvisited)-1]
 						unvisited = unvisited[0 : len(unvisited)-1]
@@ -431,6 +458,8 @@ func run(program []int, debug bool) {
 						})
 					}
 
+					// Either there is one direction/option left, or the droid has finished.
+					// The droid is not going back, because any branch is already registered in the queue.
 					if len(unvisited) == 1 {
 						cmd := unvisited[0].ToString()
 						prevRoom = room
@@ -444,6 +473,8 @@ func run(program []int, debug bool) {
 					}
 				}
 			}
+
+			// in case of an unexpected end, there is a problem with the items also
 			if unexpectedEnd {
 				// problem with last item
 				item := inventory[len(inventory)-1]
@@ -451,51 +482,61 @@ func run(program []int, debug bool) {
 				inventory = inventory[0 : len(inventory)-1]
 				fmt.Printf("👉 Putting item '%s' on blacklist...\n", item)
 
-				// Restart
+				// restart droid in the next run
 				queue.PushBack(&State{
 					Commands:  commandPath,
 					Direction: prevDirection,
 					LastRoom:  prevRoom,
 				})
 			}
+
+			// refresh list of found items
 			for _, inv := range inventory {
 				if !strings.Contains(strings.Join(foundItems, ","), inv+",") {
 					foundItems = append(foundItems, inv)
 				}
 			}
+
 		}()
 		droid.Start()
 	}
 
-	fmt.Printf("👉 Found path to security room: %s\n", strings.Join(securityRoomPath, ", "))
+	// report of findings
+	fmt.Printf("👉 Found path to security room: %s\n", strings.Join(rooms["Pressure-Sensitive Floor"].Path, ", "))
 	fmt.Printf("👉 Found items: %s\n", strings.Join(foundItems, ", "))
 	fmt.Printf("👉 The following items are on the blacklist: %s\n", strings.Join(blacklistItems, ", "))
 
+	// this is the final droid
 	droid := newDroid(program, debug)
 
-	// Collect each item: Go to the room, go back again to origin.
+	// complete list of taking all required items
 	commands := make([]string, 0)
-	for _, itemName := range foundItems {
-		directions := rooms[itemMap[itemName]].Path
-		for _, direction := range directions {
+	securityDirection := dl.NORTH
+	{
+		// applying: for each item add its path, take it, apply its reversed path
+		for _, itemName := range foundItems {
+			directions := rooms[itemMap[itemName]].Path
+			for _, direction := range directions {
+				commands = append(commands, direction)
+			}
+			commands = append(commands, "take "+itemName)
+			for i := len(directions) - 1; i >= 0; i-- {
+				commands = append(commands, dl.NewDirection(directions[i]).Return().ToString())
+			}
+		}
+
+		// applying: add path to "Security Checkpoint"
+		checkpointRoom := rooms["Security Checkpoint"]
+		for _, direction := range checkpointRoom.Path {
 			commands = append(commands, direction)
 		}
-		commands = append(commands, "take "+itemName)
-		for i := len(directions) - 1; i >= 0; i-- {
-			commands = append(commands, dl.NewDirection(directions[i]).Return().ToString())
-		}
-	}
-	// Add path to Security Checkpoint
-	checkpointRoom := rooms["Security Checkpoint"]
-	for _, direction := range checkpointRoom.Path {
-		commands = append(commands, direction)
-	}
-	sensitiveRoom := rooms["Pressure-Sensitive Floor"]
-	securityDirection := dl.NORTH
-	for dir, room := range checkpointRoom.Doors {
-		if room == sensitiveRoom {
-			securityDirection = dir
-			break
+		// find the correct direction from Security to Sensitive Floor
+		sensitiveRoom := rooms["Pressure-Sensitive Floor"]
+		for dir, room := range checkpointRoom.Doors {
+			if room == sensitiveRoom {
+				securityDirection = dir
+				break
+			}
 		}
 	}
 
@@ -504,6 +545,8 @@ func run(program []int, debug bool) {
 	go func() {
 		skip := true
 
+		// for all n items, build a permutation of all combinations (unordered, unique)
+		// this results into a set of 2^(n)-1 items (without 0)
 		permutationsOfActiveItems := unorderedAndUniquePermutations(foundItems)
 
 		// at the begin, all items are being carried
@@ -513,6 +556,8 @@ func run(program []int, debug bool) {
 		mode := "init"
 		currentItemSet := make([]string, 0)
 		for line := range droid.out {
+
+			// replaying (collecting all items, go to checkpoint)
 			if line == "Command?" && len(commands) > 0 {
 				command := commands[0]
 				commands = commands[1:]
@@ -529,6 +574,7 @@ func run(program []int, debug bool) {
 				fmt.Println(line)
 			}
 
+			// each time we pass the checkpoint, we must drop all items at first
 			if strings.Contains(line, "Security Checkpoint") {
 				mode = "drop"
 			}
@@ -536,10 +582,12 @@ func run(program []int, debug bool) {
 			if line == "Command?" {
 				if mode == "drop" {
 					if len(carriedItems) > 0 {
-						droid.in <- "drop " + carriedItems[0]
+						item := carriedItems[0]
 						carriedItems = carriedItems[1:]
+						droid.in <- "drop " + item
 						continue
 					} else {
+						// after all items have been dropped, we take all items of the next permutation set
 						mode = "take"
 						currentItemSet = permutationsOfActiveItems[0]
 						permutationsOfActiveItems = permutationsOfActiveItems[1:]
@@ -548,11 +596,13 @@ func run(program []int, debug bool) {
 
 				if mode == "take" {
 					if len(currentItemSet) > 0 {
-						droid.in <- "take " + currentItemSet[0]
-						carriedItems = append(carriedItems, currentItemSet[0])
+						item := currentItemSet[0]
 						currentItemSet = currentItemSet[1:]
+						droid.in <- "take " + item
+						carriedItems = append(carriedItems, item)
 						continue
 					} else {
+						// after all items of the current permutation set have been carried, we can walk
 						mode = "walk"
 					}
 				}
